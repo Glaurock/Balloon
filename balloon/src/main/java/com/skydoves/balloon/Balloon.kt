@@ -92,6 +92,7 @@ class Balloon(
   var onBalloonDismissListener: OnBalloonDismissListener? = null
   var onBalloonInitializedListener: OnBalloonInitializedListener? = null
   var onBalloonOutsideTouchListener: OnBalloonOutsideTouchListener? = null
+  var onBalloonPopupWindowTouchListener: OnBalloonPopupWindowTouchListener? = null
   private var supportRtlLayoutFactor: Int = LTR.unaryMinus(builder.isRtlSupport)
   private val balloonPersistence = BalloonPersistence.getInstance(context)
 
@@ -270,6 +271,7 @@ class Balloon(
     this.onBalloonDismissListener = builder.onBalloonDismissListener
     this.onBalloonInitializedListener = builder.onBalloonInitializedListener
     this.onBalloonOutsideTouchListener = builder.onBalloonOutsideTouchListener
+    this.onBalloonPopupWindowTouchListener = builder.onBalloonPopupWindowTouchListener
     this.binding.root.setOnClickListener {
       this.onBalloonClickListener?.onBalloonClick(it)
       if (builder.dismissWhenClicked) dismiss()
@@ -283,7 +285,13 @@ class Balloon(
       setTouchInterceptor(object : View.OnTouchListener {
         @SuppressLint("ClickableViewAccessibility")
         override fun onTouch(view: View, event: MotionEvent): Boolean {
-          if (event.action == MotionEvent.ACTION_OUTSIDE) {
+          if (isFocusable && event.action == MotionEvent.ACTION_DOWN) {
+            if (builder.dismissWhenTouchOutside) {
+              this@Balloon.dismiss()
+            }
+            onBalloonPopupWindowTouchListener?.onBalloonPopupWindowTouch(view, event)
+            return true
+          } else if (event.action == MotionEvent.ACTION_OUTSIDE) {
             if (builder.dismissWhenTouchOutside) {
               this@Balloon.dismiss()
             }
@@ -911,6 +919,9 @@ class Balloon(
     var onBalloonOutsideTouchListener: OnBalloonOutsideTouchListener? = null
 
     @JvmField
+    var onBalloonPopupWindowTouchListener: OnBalloonPopupWindowTouchListener? = null
+
+    @JvmField
     var dismissWhenTouchOutside: Boolean = true
 
     @JvmField
@@ -1266,6 +1277,11 @@ class Balloon(
       this.onBalloonOutsideTouchListener = value
     }
 
+    /** sets a [OnBalloonPopupWindowTouchListener] to the popup. */
+    fun setOnBalloonPopupWindowTouchListener(value: OnBalloonPopupWindowTouchListener): Builder = apply {
+      this.onBalloonPopupWindowTouchListener = value
+    }
+
     /** sets a [OnBalloonClickListener] to the popup using lambda. */
     fun setOnBalloonClickListener(unit: (View) -> Unit): Builder = apply {
       this.onBalloonClickListener = object : OnBalloonClickListener {
@@ -1297,6 +1313,18 @@ class Balloon(
     fun setOnBalloonOutsideTouchListener(unit: (View, MotionEvent) -> Unit): Builder = apply {
       this.onBalloonOutsideTouchListener = object : OnBalloonOutsideTouchListener {
         override fun onBalloonOutsideTouch(
+          view: View,
+          event: MotionEvent
+        ) {
+          unit(view, event)
+        }
+      }
+    }
+
+    /** sets a [OnBalloonPopupWindowTouchListener] to the popup using lambda. */
+    fun setOnBalloonPopupWindowTouchListener(unit: (View, MotionEvent) -> Unit): Builder = apply {
+      this.onBalloonPopupWindowTouchListener = object : OnBalloonPopupWindowTouchListener {
+        override fun onBalloonPopupWindowTouch(
           view: View,
           event: MotionEvent
         ) {
